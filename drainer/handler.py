@@ -19,12 +19,14 @@ KUBE_FILEPATH = '/tmp/kubeconfig'
 CLUSTER_NAME = os.environ.get('CLUSTER_NAME')
 KUBE_CONFIG_BUCKET = os.environ.get('KUBE_CONFIG_BUCKET')
 KUBE_CONFIG_OBJECT = os.environ.get('KUBE_CONFIG_OBJECT')
+KUBE_CONFIG_SECRET_ARN = os.environ.get('KUBE_CONFIG_SECRET_ARN')
 REGION = os.environ['AWS_REGION']
 
 eks = boto3.client('eks', region_name=REGION)
 ec2 = boto3.client('ec2', region_name=REGION)
 asg = boto3.client('autoscaling', region_name=REGION)
 s3 = boto3.client('s3', region_name=REGION)
+secretsmanager = boto3.client('secretsmanager', region_name=REGION)
 
 
 def create_kube_config(eks):
@@ -67,9 +69,18 @@ def create_kube_config(eks):
         yaml.dump(kube_config, f, default_flow_style=False)
 
 
-def get_kube_config(s3):
+def get_kube_config_from_s3(s3):
     """Downloads the Kubernetes config file from S3."""
     s3.download_file(KUBE_CONFIG_BUCKET, KUBE_CONFIG_OBJECT, KUBE_FILEPATH)
+
+
+def get_kube_config_from_secrets_manager(secretsmanager):
+    """Downloads the Kubernetes config file from SecretsManager."""
+    response = secretsmanager.get_secret_value(SecretId=KUBE_CONFIG_SECRET_ARN)
+    kubeconfig = response['SecretString']
+    with open(KUBE_FILEPATH, 'w') as f:
+        f.write(kubeconfig)
+
 
 def get_bearer_token(cluster, region):
     """Creates the authentication to token required by AWS IAM Authenticator. This is
@@ -119,11 +130,16 @@ def get_bearer_token(cluster, region):
 
 def _lambda_handler(k8s_config, k8s_client, event):
     if not os.path.exists(KUBE_FILEPATH):
-        if KUBE_CONFIG_BUCKET:
-            logger.info('No kubeconfig file found. Downloading...')
-            get_kube_config(s3)
+        logger.info('No kubeconfig file found')
+
+        if KUBE_CONFIG_SECRET_ARN:
+            logger.info('Downloading from Secrets Manager...')
+            get_kube_config_from_secrets_manager(secretsmanager)
+        elif KUBE_CONFIG_BUCKET:
+            logger.info('Downloading from S3...')
+            get_kube_config_from_s3(s3)
         else:
-            logger.info('No kubeconfig file found. Generating...')
+            logger.info('Generating...')
             create_kube_config(eks)
 
     lifecycle_hook_name = event['detail']['LifecycleHookName']
