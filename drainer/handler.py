@@ -157,6 +157,7 @@ def _lambda_handler(k8s_config, k8s_client, event):
     # Configure
     k8s_config.load_kube_config(KUBE_FILEPATH)
     configuration = k8s_client.Configuration()
+    logger.info('K8s API endpoint: %s', configuration.host)
     if CLUSTER_NAME:
         configuration.api_key['authorization'] = get_bearer_token(
             CLUSTER_NAME, REGION)
