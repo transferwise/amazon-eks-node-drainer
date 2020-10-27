@@ -77,7 +77,7 @@ def get_kube_config_from_s3(s3):
 def get_kube_config_from_secrets_manager(secretsmanager):
     """Downloads the Kubernetes config file from SecretsManager."""
     response = secretsmanager.get_secret_value(SecretId=KUBE_CONFIG_SECRET_ARN)
-    kubeconfig = response['SecretString']
+    kubeconfig = response['SecretBinary'].decode('utf-8')
     with open(KUBE_FILEPATH, 'w') as f:
         f.write(kubeconfig)
 
