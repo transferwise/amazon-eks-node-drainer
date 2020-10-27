@@ -80,6 +80,7 @@ def get_kube_config_from_secrets_manager(secretsmanager):
     kubeconfig = response['SecretBinary'].decode('utf-8')
     with open(KUBE_FILEPATH, 'w') as f:
         f.write(kubeconfig)
+    logger.info('Kubeconfig size: %d', os.path.getsize(KUBE_FILEPATH))
 
 
 def get_bearer_token(cluster, region):
