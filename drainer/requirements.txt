@@ -1,1 +1,2 @@
-kubernetes
+kubernetes==12.0.0
+pyyaml==5.3.1
